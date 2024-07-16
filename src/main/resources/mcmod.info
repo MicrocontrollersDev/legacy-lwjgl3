@@ -1,0 +1,21 @@
+[
+  {
+    "modid": "${modid}",
+    "name": "Forge port of legacy-lwjgl",
+    "description": "A mod that is used as an example.",
+    "version": "${version}",
+    "mcversion": "${mcversion}",
+    "url": "https://github.com/MicrocontrollersDev/legacy-lwjgl3/",
+    "updateUrl": "",
+    "authorList": [
+      "gudenau",
+      "Zarzelcow",
+      "moehreag",
+      "Microcontrollers"
+    ],
+    "credits": "",
+    "logoFile": "",
+    "screenshots": [],
+    "dependencies": []
+  }
+]

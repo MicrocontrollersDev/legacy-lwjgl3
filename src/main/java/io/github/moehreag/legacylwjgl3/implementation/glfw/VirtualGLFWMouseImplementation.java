@@ -14,11 +14,7 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.mojang.blaze3d.platform.GlStateManager;
-import com.mojang.blaze3d.platform.TextureUtil;
-import com.mojang.blaze3d.vertex.BufferBuilder;
-import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.Tessellator;
+import net.minecraft.client.renderer.texture.TextureUtil;
 import io.github.moehreag.legacylwjgl3.implementation.input.MouseImplementation;
 import io.github.moehreag.legacylwjgl3.util.XDGPathResolver;
 import lombok.Data;
@@ -26,12 +22,16 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.screen.ChatScreen;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.screen.inventory.BookEditScreen;
-import net.minecraft.client.gui.screen.inventory.menu.InventoryMenuScreen;
-import net.minecraft.client.render.Window;
-import net.minecraft.resource.Identifier;
+import net.minecraft.client.gui.GuiChat;
+import net.minecraft.client.gui.GuiScreen;
+import net.minecraft.client.gui.GuiScreenBook;
+import net.minecraft.client.gui.ScaledResolution;
+import net.minecraft.client.gui.inventory.GuiInventory;
+import net.minecraft.client.renderer.GlStateManager;
+import net.minecraft.client.renderer.Tessellator;
+import net.minecraft.client.renderer.WorldRenderer;
+import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
+import net.minecraft.util.ResourceLocation;
 import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -155,15 +155,15 @@ public class VirtualGLFWMouseImplementation implements MouseImplementation {
 	}
 
 	private boolean mayVirtualize() {
-		return Minecraft.getInstance().world != null;
+		return Minecraft.getMinecraft().theWorld != null;
 	}
 
 	/*
 	 * whether we are on a screen where the virtual cursor is allowed
 	 */
 	private boolean isValidScreen() {
-		Screen s = Minecraft.getInstance().screen;
-		return s instanceof InventoryMenuScreen || s instanceof ChatScreen || s instanceof BookEditScreen;
+		GuiScreen s = Minecraft.getMinecraft().currentScreen;
+		return s instanceof GuiInventory || s instanceof GuiChat || s instanceof GuiScreenBook;
 	}
 
 	private void setup() {
@@ -278,13 +278,13 @@ public class VirtualGLFWMouseImplementation implements MouseImplementation {
 	 */
 	private void draw() {
 		if (virtual && images[0] != -1) {
-			GlStateManager.enableTexture();
-			GlStateManager.enableAlphaTest();
+			GlStateManager.enableTexture2D();
+			GlStateManager.enableAlpha();
 			GlStateManager.enableBlend();
-			GlStateManager.color3f(1, 1, 1);
+			GlStateManager.color(1, 1, 1);
 			GlStateManager.bindTexture(images[current]);
 
-			float scale = new Window(Minecraft.getInstance()).getScale();
+			float scale = new ScaledResolution(Minecraft.getMinecraft()).getScaleFactor();
 			double x = getX();
 			double y = getY();
 			drawTexture((x - getCurrent().xhot) / scale, (Display.getHeight() - y - getCurrent().yhot) / scale, getCurrent().width / scale, getCurrent().height / scale, getCurrent().width / scale, getCurrent().height / scale);
@@ -298,13 +298,13 @@ public class VirtualGLFWMouseImplementation implements MouseImplementation {
 		double o = 1.0F / textureHeight;
 		double z = 1000;
 		Tessellator tessellator = Tessellator.getInstance();
-		BufferBuilder bufferBuilder = tessellator.getBuilder();
-		bufferBuilder.begin(7, DefaultVertexFormat.POSITION_TEX);
-		bufferBuilder.vertex(x, y + height, z).texture(0, height * o).nextVertex();
-		bufferBuilder.vertex(x + width, y + height, z).texture(width * n, height * o).nextVertex();
-		bufferBuilder.vertex(x + width, y, z).texture(width * n, 0).nextVertex();
-		bufferBuilder.vertex(x, y, z).texture(0, 0).nextVertex();
-		tessellator.end();
+		WorldRenderer bufferBuilder = tessellator.getWorldRenderer();
+		bufferBuilder.begin(7, DefaultVertexFormats.POSITION_TEX);
+		bufferBuilder.pos(x, y + height, z).tex(0, height * o).endVertex();
+		bufferBuilder.pos(x + width, y + height, z).tex(width * n, height * o).endVertex();
+		bufferBuilder.pos(x + width, y, z).tex(width * n, 0).endVertex();
+		bufferBuilder.pos(x, y, z).tex(0, 0).endVertex();
+		tessellator.draw();
 	}
 
 	private void advanceAnimation() {
@@ -347,9 +347,9 @@ public class VirtualGLFWMouseImplementation implements MouseImplementation {
 		images = new int[chunks.size()];
 		for (int i = 0; i < images.length; i++) {
 			XCursor.ImageChunk c = chunks.get(i);
-			int id = TextureUtil.genTextures();
+			int id = TextureUtil.glGenTextures();
 			images[i] = id;
-			TextureUtil.prepare(id, (int) c.width, (int) c.height);
+			TextureUtil.allocateTexture(id, (int) c.width, (int) c.height);
 			TextureUtil.uploadTexture(id, c.getImage(), (int) c.width, (int) c.height);
 		}
 	}
@@ -394,7 +394,7 @@ public class VirtualGLFWMouseImplementation implements MouseImplementation {
 
 			LOGGER.info("Falling back to packaged cursor");
 			try {
-				return Minecraft.getInstance().getResourceManager().getResource(new Identifier("virtual_cursor", "default")).asStream();
+				return Minecraft.getMinecraft().getResourceManager().getResource(new ResourceLocation("virtual_cursor", "default")).getInputStream();
 			} catch (IOException ignored) {
 
 			}
